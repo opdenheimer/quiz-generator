@@ -1,13 +1,21 @@
 from flask import Flask
-from config import Config
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
+import os
 
-app = Flask(__name__)
-app.config.from_object(Config)
-db = SQLAlchemy(app)
-migrate = Migrate(app, db)
+def create_app():
+    app = Flask(__name__)
+    app.config['UPLOAD_FOLDER'] = os.path.join(os.getcwd(), 'uploads')
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-from app import routes
+    # Register the quizgen blueprint
+    from app.quizgen.routes import quizgen_bp
+    app.register_blueprint(quizgen_bp, url_prefix='/quizgen')
 
-   
+    # Simple home route
+    @app.route('/')
+    def home():
+        return '''
+        <h2>AI Quiz Generator 🧠</h2>
+        <p><a href="/quizgen/upload">Upload a Document to Generate Quiz</a></p>
+        '''
+
+    return app
