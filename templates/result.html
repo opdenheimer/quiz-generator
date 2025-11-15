@@ -1,14 +1,38 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Quiz Result</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-</head>
-<body class="p-5 text-center">
-  <div class="container">
-    <h2>🏁 Quiz Completed!</h2>
-    <h4>Your Score: {{ score }} / {{ total }}</h4>
-    <a href="{{ url_for('quizgen.upload_doc') }}" class="btn btn-primary mt-3">Upload Another</a>
-  </div>
-</body>
-</html>
+{% extends 'base.html' %}
+{% block title %}Quiz Results{% endblock %}
+
+{% block content %}
+<div class="container py-5 text-center">
+    <div class="card shadow-lg border-0 p-5">
+        <h1 class="mb-3 text-primary"><i class="fas fa-trophy"></i> Quiz Results</h1>
+        <h3 class="mb-4">Your Score: {{ score }}/{{ total }}</h3>
+        <div class="progress mb-4" style="height: 20px;">
+            <div class="progress-bar" role="progressbar" style="width: {{ percentage }}%;">
+                {{ percentage }}%
+            </div>
+        </div>
+
+        <div class="text-start mt-4">
+            {% for i, q in enumerate(questions) %}
+            <div class="card my-3">
+                <div class="card-body">
+                    <strong>Q{{ i+1 }}: {{ q.question }}</strong><br>
+                    <span class="text-muted">Your Answer:</span>
+                    {% if user_answers['q' ~ i] == q.answer %}
+                        <span class="text-success fw-bold">{{ user_answers['q' ~ i] }}</span>
+                    {% else %}
+                        <span class="text-danger fw-bold">{{ user_answers['q' ~ i] or 'Not answered' }}</span><br>
+                        <small class="text-success">Correct Answer: {{ q.answer }}</small>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <a href="{{ url_for('quizgen.upload_doc') }}" class="btn btn-primary mt-4">
+            <i class="fas fa-arrow-left"></i> Generate New Quiz
+        </a>
+    </div>
+</div>
+{% endblock %}
+

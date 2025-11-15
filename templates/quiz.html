@@ -1,26 +1,242 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Generated Quiz</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-</head>
-<body class="p-5">
-  <div class="container">
-    <h2>🧠 Generated Quiz</h2>
-    <form method="POST" action="{{ url_for('quizgen.submit_quiz', quiz_id=quiz_id) }}">
-      {% for q in questions %}
-        <div class="mb-4">
-          <h5>{{ loop.index }}. {{ q.question }}</h5>
-          {% for opt in q.options %}
-            <div class="form-check">
-              <input class="form-check-input" type="radio" name="q{{ loop.index0 }}" value="{{ opt }}" required>
-              <label class="form-check-label">{{ opt }}</label>
+{% extends 'base.html' %}
+
+{% block title %}Quiz - Quiz Generator{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Quiz Header -->
+            <div class="card shadow-lg border-0 mb-4">
+                <div class="card-body bg-primary text-white p-4 rounded-top">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h2 class="mb-0 fw-bold">
+                            <i class="fas fa-clipboard-list me-2"></i>Quiz Time
+                        </h2>
+                        <div class="badge bg-light text-primary fs-6">
+                            Quiz ID: {{ quiz_id }}
+                        </div>
+                    </div>
+                </div>
             </div>
-          {% endfor %}
+
+            <!-- Progress Bar -->
+            <div class="mb-4">
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="fw-bold">Progress</span>
+                    <span class="text-muted"><span id="currentQuestion">1</span> of {{ questions|length }}</span>
+                </div>
+                <div class="progress" style="height: 8px;">
+                    <div class="progress-bar progress-bar-animated" id="progressBar" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Quiz Form -->
+            <form method="POST" action="{{ url_for('quizgen.submit_quiz', quiz_id=quiz_id) }}" id="quizForm" novalidate>
+                {% for question in questions %}
+                <div class="card shadow-sm border-0 mb-4 question-card" data-question="{{ loop.index0 }}">
+                    <div class="card-body p-4">
+                        <!-- Question Number and Text -->
+                        <div class="mb-4">
+                            <div class="d-flex align-items-start">
+                                <div class="badge bg-primary me-3 mt-1" style="font-size: 1rem;">
+                                    Q{{ loop.index }}
+                                </div>
+                                <div>
+                                    <h5 class="fw-bold mb-0">{{ question.question }}</h5>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Answer Options -->
+                        <div class="options">
+                            {% for option in question.options %}
+                            <div class="form-check mb-3">
+                                <input 
+                                    class="form-check-input" 
+                                    type="radio" 
+                                    name="q{{ loop.parent.index0 }}"
+                                    id="q{{ loop.parent.index0 }}_opt{{ loop.index0 }}"
+                                    value="{{ option }}"
+                                    required
+                                >
+                                <label class="form-check-label w-100 p-3 border rounded-2" for="q{{ loop.parent.index0 }}_opt{{ loop.index0 }}">
+                                    <i class="fas fa-circle-notch me-2"></i>{{ option }}
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+
+                <!-- Submit Button -->
+                <div class="d-grid gap-2 mt-5">
+                    <button type="submit" class="btn btn-primary btn-lg fw-bold" id="submitBtn">
+                        <i class="fas fa-check-circle me-2"></i>Submit Quiz
+                    </button>
+                </div>
+            </form>
+
+            <!-- Validation Alert -->
+            <div class="alert alert-warning alert-dismissible fade show mt-4 d-none" id="validationAlert" role="alert">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Please answer all questions before submitting!</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
         </div>
-      {% endfor %}
-      <button type="submit" class="btn btn-success">Submit Quiz</button>
-    </form>
-  </div>
-</body>
-</html>
+    </div>
+</div>
+
+<style>
+    .question-card {
+        transition: all 0.3s ease;
+        border-left: 4px solid #e0e0e0;
+    }
+
+    .question-card:hover {
+        border-left-color: var(--primary-color);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.15) !important;
+    }
+
+    .form-check-input {
+        width: 20px;
+        height: 20px;
+        margin-top: 0.4rem;
+        cursor: pointer;
+        border: 2px solid #d0d0d0;
+        transition: all 0.3s ease;
+    }
+
+    .form-check-input:checked {
+        background-color: var(--primary-color);
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 0.25rem rgba(102, 126, 234, 0.25);
+    }
+
+    .form-check-input:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 0.25rem rgba(102, 126, 234, 0.25);
+    }
+
+    .form-check-label {
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: #f8f9fa;
+        border: 2px solid #e0e0e0 !important;
+    }
+
+    .form-check-label:hover {
+        background: #e7f1ff;
+        border-color: var(--primary-color) !important;
+    }
+
+    .form-check-input:checked + .form-check-label {
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+        border-color: var(--primary-color) !important;
+        font-weight: 600;
+    }
+
+    .progress-bar {
+        background: linear-gradient(90deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    }
+
+    #submitBtn {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        border: none;
+        transition: all 0.3s ease;
+        padding: 15px 30px;
+    }
+
+    #submitBtn:hover:not(:disabled) {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+    }
+
+    #submitBtn:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+    }
+
+    .options {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    @media (max-width: 768px) {
+        .question-card {
+            border-left-width: 3px;
+        }
+
+        .form-check-label {
+            padding: 12px 15px !important;
+            font-size: 0.95rem;
+        }
+    }
+</style>
+
+<script>
+    const quizForm = document.getElementById('quizForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const validationAlert = document.getElementById('validationAlert');
+    const progressBar = document.getElementById('progressBar');
+    const currentQuestion = document.getElementById('currentQuestion');
+    const totalQuestions = {{ questions|length }};
+
+    // Update progress bar when answer is selected
+    const radioInputs = document.querySelectorAll('input[type="radio"]');
+    
+    radioInputs.forEach(input => {
+        input.addEventListener('change', updateProgress);
+    });
+
+    function updateProgress() {
+        const answeredQuestions = document.querySelectorAll('input[type="radio"]:checked').length;
+        const progress = (answeredQuestions / totalQuestions) * 100;
+        progressBar.style.width = progress + '%';
+        currentQuestion.textContent = answeredQuestions;
+    }
+
+    // Form Submission with Validation
+    quizForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        // Check if all questions are answered
+        const allAnswered = Array.from(radioInputs)
+            .reduce((acc, input) => {
+                const questionNum = input.name;
+                return acc && !!document.querySelector(`input[name="${questionNum}"]:checked`);
+            }, true);
+
+        if (!allAnswered) {
+            validationAlert.classList.remove('d-none');
+            validationAlert.scrollIntoView({ behavior: 'smooth' });
+            return;
+        }
+
+        // Hide alert if all questions answered
+        validationAlert.classList.add('d-none');
+
+        // Disable submit button and show loading
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Submitting...';
+
+        // Submit the form
+        setTimeout(() => {
+            this.submit();
+        }, 500);
+    });
+
+    // Keyboard navigation (Optional)
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            quizForm.dispatchEvent(new Event('submit'));
+        }
+    });
+
+    // Initialize progress
+    updateProgress();
+</script>
+
+{% endblock %}
