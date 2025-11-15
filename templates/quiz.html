@@ -50,17 +50,18 @@
 
                         <!-- Answer Options -->
                         <div class="options">
+                            {% set q_index =loop.index0 %}
                             {% for option in question.options %}
                             <div class="form-check mb-3">
                                 <input 
                                     class="form-check-input" 
                                     type="radio" 
-                                    name="q{{ loop.parent.index0 }}"
-                                    id="q{{ loop.parent.index0 }}_opt{{ loop.index0 }}"
+                                    name="q{{ q_index }}"
+                                    id="q{{ q_index }}_opt{{ loop.index0 }}"
                                     value="{{ option }}"
                                     required
                                 >
-                                <label class="form-check-label w-100 p-3 border rounded-2" for="q{{ loop.parent.index0 }}_opt{{ loop.index0 }}">
+                                <label class="form-check-label w-100 p-3 border rounded-2" for="q{{ q_index }}_opt{{ loop.index0 }}">
                                     <i class="fas fa-circle-notch me-2"></i>{{ option }}
                                 </label>
                             </div>

@@ -83,7 +83,7 @@ def submit_quiz(quiz_id):
                 score += 1
         
         percentage = (score/total)*100 if total > 0 else 0
-        return render_template('result.html', score=score, total=total, quiz_id=quiz_id
+        return render_template('result.html', score=score, total=total, quiz_id=quiz_id,
                                percentage=round(percentage,2),questions=questions,user_answers=user_answers)
     
     except Exception as e:
