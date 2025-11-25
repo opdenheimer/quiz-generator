@@ -200,33 +200,25 @@
     }
 
     // Form Submission with Validation
-    quizForm.addEventListener('submit', function(e) {
+  quizForm.addEventListener('submit', function(e) {
+    const allQuestions = new Set();
+    const answeredQuestions = new Set();
+
+    document.querySelectorAll('input[type="radio"]').forEach(input => {
+        allQuestions.add(input.name);
+        if (input.checked) answeredQuestions.add(input.name);
+    });
+
+/*if (answeredQuestions.size !== allQuestions.size) {
         e.preventDefault();
+        validationAlert.classList.remove('d-none');
+        validationAlert.scrollIntoView({ behavior: 'smooth' });
+        return;
+    }*/
 
-        // Check if all questions are answered
-        const allAnswered = Array.from(radioInputs)
-            .reduce((acc, input) => {
-                const questionNum = input.name;
-                return acc && !!document.querySelector(`input[name="${questionNum}"]:checked`);
-            }, true);
-
-        if (!allAnswered) {
-            validationAlert.classList.remove('d-none');
-            validationAlert.scrollIntoView({ behavior: 'smooth' });
-            return;
-        }
-
-        // Hide alert if all questions answered
-        validationAlert.classList.add('d-none');
-
-        // Disable submit button and show loading
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Submitting...';
-
-        // Submit the form
-        setTimeout(() => {
-            this.submit();
-        }, 500);
+    validationAlert.classList.add('d-none');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Submitting...';
     });
 
     // Keyboard navigation (Optional)

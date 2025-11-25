@@ -83,24 +83,31 @@ def extract_answer(sentence):
     """Extract the most relevant word as answer from sentence"""
     try:
         words = [w.strip(".,!?()\"'") for w in sentence.split()]
-        
-        common_words = {'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 
-                       'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'should', 
-                       'could', 'can', 'may', 'might', 'must', 'and', 'or', 'but', 'in', 'on', 
-                       'at', 'to', 'for', 'of', 'with', 'by', 'from'}
-        
+        common_words = {'the','a','an','is','are','was','were','be','been','being',
+                        'have','has','had','do','does','did','will','would','should',
+                        'could','can','may','might','must','and','or','but','in','on',
+                        'at','to','for','of','with','by','from','that','which'}
         words = [w for w in words if w.lower() not in common_words and len(w) > 2]
-        
+
         if not words:
             return None
-        
+
+        # Prefer multi-word answers (named entities), else longest word
+        multi_word_candidates = []
+        toks = sentence.split()
+        for i in range(len(toks)-1):
+            pair = toks[i].strip(".,!?()\"'") + " " + toks[i+1].strip(".,!?()\"'")
+            if pair[0].isupper():
+                multi_word_candidates.append(pair)
+        if multi_word_candidates:
+            return multi_word_candidates[-1]
+
         proper_nouns = [w for w in words if w[0].isupper()]
         if proper_nouns:
             return proper_nouns[-1]
-        
+
         longest = max(words, key=len)
         return longest
-    
     except Exception as e:
         print(f"Error extracting answer: {e}")
         return None
@@ -109,54 +116,105 @@ def extract_answer(sentence):
 # -------------------------------------------------------
 # D. GENERATE QUESTION (Simplified & Faster)
 # -------------------------------------------------------
+def _template_question_from_context(context, answer):
+    # Create a robust fill-in-the-blank or "which of the following" style question
+    blanked = context.replace(answer, "_____")
+    # If replacing didn't change text (case mismatch), try case-insensitive
+    if blanked == context:
+        import re
+        blanked = re.sub(re.escape(answer), "_____", context, flags=re.IGNORECASE)
+    # Keep it short
+    if len(blanked) > 200:
+        blanked = blanked[:200].rsplit(' ', 1)[0] + '...'
+    return f"Fill in the blank: {blanked}"
+
 def generate_question(context, answer):
-    """Generate a question for given context and answer"""
     try:
         model_obj, tokenizer_obj = get_model()
 
-        # Simpler prompt for faster generation
-        prompt = f"question: {context} answer: {answer}"
+        prompt = (
+            f"Create a clear multiple-choice question (one sentence) based on the context below. "
+            f"Make the correct answer exactly: {answer}\n\nContext: {context}\nQuestion:"
+        )
 
         inputs = tokenizer_obj(prompt, return_tensors="pt", truncation=True, max_length=256)
         outputs = model_obj.generate(
             **inputs,
-            max_length=64,
-            num_beams=2,
+            max_length=80,
+            num_beams=3,
+            no_repeat_ngram_size=2,
             early_stopping=True
         )
 
-        question = tokenizer_obj.decode(outputs[0], skip_special_tokens=True)
-        return question.strip() if question else None
-    
+        q_text = tokenizer_obj.decode(outputs[0], skip_special_tokens=True).strip()
+
+        # Post-checks: reject trivial T/F or single-word outputs
+        short_or_tf = False
+        if not q_text or len(q_text.split()) < 4:
+            short_or_tf = True
+        if q_text.lower() in {"true", "false", "yes", "no"}:
+            short_or_tf = True
+        if any(tok.lower() in q_text.lower() for tok in ["true/false", "true false", "yes/no"]):
+            short_or_tf = True
+
+        if short_or_tf:
+            # fallback: build a reliable fill-in-the-blank question
+            return _template_question_from_context(context, answer)
+
+        # If the model produced something that accidentally includes the answer only (e.g., "True")
+        # make sure it reads like a question
+        if not q_text.endswith('?') and len(q_text.split()) <= 8:
+            q_text = q_text.rstrip('.') + '?'
+
+        return q_text
     except Exception as e:
         print(f"Error generating question: {e}")
-        return None
+        return _template_question_from_context(context, answer)
 
 
 # -------------------------------------------------------
 # E. CREATE DISTRACTORS
 # -------------------------------------------------------
 def create_distractors(correct_answer, topic_words):
-    """Create plausible wrong answers (distractors)"""
     try:
-        distractors = set()
-        
-        for word in topic_words:
-            if word.lower().strip() != correct_answer.lower().strip() and len(word) > 3:
-                distractors.add(word)
-                if len(distractors) >= 3:
-                    break
-        
-        generic_distractors = ["Not specified", "Unknown", "Cannot determine", "All of the above"]
-        for distractor in generic_distractors:
-            if len(distractors) < 3:
-                distractors.add(distractor)
-        
-        options = [correct_answer] + list(distractors)[:3]
+        distractors = []
+        seen = set([correct_answer.lower().strip()])
+
+        # Prefer other topic words (cleaned)
+        candidates = []
+        for w in topic_words:
+            wclean = w.strip(".,!?()\"'").strip()
+            if not wclean:
+                continue
+            if wclean.lower() not in seen and len(wclean) > 2:
+                candidates.append(wclean)
+                seen.add(wclean.lower())
+
+        # take up to 3 topic-word distractors
+        for c in candidates:
+            if len(distractors) >= 3:
+                break
+            # avoid duplicates and obvious numeric equality
+            if c.lower() != correct_answer.lower():
+                distractors.append(c)
+
+        # If not enough, add plausible generic distractors with small variations
+        generic = ["Not specified", "Unknown", "Cannot determine", "All of the above", "None of the above"]
+        gi = 0
+        while len(distractors) < 3 and gi < len(generic):
+            g = generic[gi]
+            if g.lower() not in seen:
+                distractors.append(g)
+                seen.add(g.lower())
+            gi += 1
+
+        # Final safety: ensure we have 3 distractors
+        while len(distractors) < 3:
+            distractors.append("Option " + chr(65 + len(distractors)))
+
+        options = [correct_answer] + distractors[:3]
         random.shuffle(options)
-        
         return options
-    
     except Exception as e:
         print(f"Error creating distractors: {e}")
         return [correct_answer, "Option B", "Option C", "Option D"]
